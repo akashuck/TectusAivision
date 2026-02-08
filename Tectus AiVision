@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cocoa Quest - The Chocolate Hunt</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            background: #2c3e50;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: white;
+            overflow: hidden;
+        }
+        #game-ui {
+            margin-bottom: 10px;
+            text-align: center;
+        }
+        canvas {
+            border: 4px solid #ecf0f1;
+            border-radius: 8px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            background: linear-gradient(to bottom, #87CEEB 0%, #E0F6FF 100%);
+        }
+        .controls-hint {
+            margin-top: 15px;
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-ui">
+        <h1>Cocoa Quest</h1>
+        <p>Reach the <strong>Golden Chocolate Bar</strong> at the end!</p>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <div class="controls-hint">
+        Use <b>Arrow Keys</b> or <b>WASD</b> to Move & Jump
+    </div>
+
+<script>
+/** @type {HTMLCanvasElement} */
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+canvas.width = 800;
+canvas.height = 400;
+
+// Game Constants
+const GRAVITY = 0.5;
+const FRICTION = 0.8;
+const JUMP_FORCE = -12;
+const SPEED = 5;
+
+// State
+const keys = {};
+let gameActive = true;
+
+// Player Object
+const player = {
+    x: 50,
+    y: 300,
+    width: 30,
+    height: 40,
+    dx: 0,
+    dy: 0,
+    grounded: false,
+    color: '#E67E22' // Boy's shirt color
+};
+
+// Level Design (x, y, width, height)
+const platforms = [
+    { x: 0, y: 380, w: 1200, h: 20 },   // Floor
+    { x: 300, y: 280, w: 150, h: 20 },
+    { x: 550, y: 200, w: 150, h: 20 },
+    { x: 800, y: 280, w: 150, h: 20 },
+    { x: 1050, y: 180, w: 100, h: 20 },
+    { x: 1300, y: 300, w: 200, h: 20 },
+];
+
+// The Goal (Chocolate Bar)
+const goal = { x: 1400, y: 250, w: 40, h: 50 };
+
+// Camera offset
+let cameraX = 0;
+
+// Event Listeners
+window.addEventListener('keydown', e => keys[e.code] = true);
+window.addEventListener('keyup', e => keys[e.code] = false);
+
+function update() {
+    if (!gameActive) return;
+
+    // Movement Logic
+    if (keys['ArrowRight'] || keys['KeyD']) {
+        if (player.dx < SPEED) player.dx++;
+    }
+    if (keys['ArrowLeft'] || keys['KeyA']) {
+        if (player.dx > -SPEED) player.dx--;
+    }
+
+    // Jump Logic
+    if ((keys['ArrowUp'] || keys['KeyW'] || keys['Space']) && player.grounded) {
+        player.dy = JUMP_FORCE;
+        player.grounded = false;
+    }
+
+    // Apply Physics
+    player.dy += GRAVITY;
+    player.x += player.dx;
+    player.y += player.dy;
+    player.dx *= FRICTION;
+
+    // Collision Detection
+    player.grounded = false;
+    for (let plat of platforms) {
+        if (player.x < plat.x + plat.w &&
+            player.x + player.width > plat.x &&
+            player.y < plat.y + plat.h &&
+            player.y + player.height > plat.y) {
+            
+            // Collision from top
+            if (player.dy > 0 && player.y + player.height - player.dy <= plat.y) {
+                player.y = plat.y - player.height;
+                player.dy = 0;
+                player.grounded = true;
+            }
+        }
+    }
+
+    // Win Condition
+    if (player.x < goal.x + goal.w &&
+        player.x + player.width > goal.x &&
+        player.y < goal.y + goal.h &&
+        player.y + player.height > goal.y) {
+        gameWin();
+    }
+
+    // Camera follow (center player)
+    cameraX = player.x - canvas.width / 4;
+}
+
+function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    ctx.save();
+    ctx.translate(-cameraX, 0);
+
+    // Draw Platforms
+    ctx.fillStyle = '#27ae60';
+    platforms.forEach(p => {
+        ctx.fillRect(p.x, p.y, p.w, p.h);
+        // Add grass top
+        ctx.fillStyle = '#2ecc71';
+        ctx.fillRect(p.x, p.y, p.w, 5);
+        ctx.fillStyle = '#27ae60';
+    });
+
+    // Draw Goal (The Chocolate)
+    ctx.fillStyle = '#3d1f00'; // Dark Choco
+    ctx.fillRect(goal.x, goal.y, goal.w, goal.h);
+    ctx.fillStyle = '#f1c40f'; // Gold Wrapper
+    ctx.fillRect(goal.x, goal.y + 10, goal.w, 15);
+
+    // Draw Player (The Boy)
+    ctx.fillStyle = '#FFCCBB'; // Skin
+    ctx.fillRect(player.x + 5, player.y - 10, 20, 20); // Head
+    ctx.fillStyle = player.color; // Shirt
+    ctx.fillRect(player.x, player.y + 10, player.width, 30); // Body
+    ctx.fillStyle = '#2980b9'; // Pants
+    ctx.fillRect(player.x, player.y + 30, player.width, 10);
+
+    ctx.restore();
+}
+
+function gameWin() {
+    gameActive = false;
+    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    ctx.fillRect(0,0, canvas.width, canvas.height);
+    ctx.fillStyle = 'white';
+    ctx.font = '40px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText("VICTORY! YOU GOT THE CHOCOLATE!", canvas.width/2, canvas.height/2);
+    ctx.font = '20px Arial';
+    ctx.fillText("Press F5 to Play Again", canvas.width/2, canvas.height/2 + 50);
+}
+
+function loop() {
+    update();
+    draw();
+    requestAnimationFrame(loop);
+}
+
+loop();
+</script>
+</body>
+</html>
