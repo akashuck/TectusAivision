@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">IRIS</string>
+    <string name="start_iris">Start IRIS</string>
+    <string name="status_idle">Status: Idle</string>
+    <string name="status_listening">Status: Listening...</string>
+    <string name="status_processing">Status: Processing...</string>
+</resources>
